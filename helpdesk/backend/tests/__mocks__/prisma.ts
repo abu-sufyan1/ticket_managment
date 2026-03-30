@@ -21,4 +21,7 @@ export const prisma = {
     findMany: jest.fn(),
     create: jest.fn(),
   },
+  knowledgeBase: {
+    findMany: jest.fn(),
+  },
 };

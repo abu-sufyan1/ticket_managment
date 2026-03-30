@@ -2,6 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db/prisma';
 import { AppError } from '../utils/AppError';
+import {
+  classifyTicket,
+  tryAutoResolve,
+  polishReply,
+  summarizeTicket,
+} from '../services/aiService';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -57,8 +63,46 @@ export async function createTicket(req: Request, res: Response, next: NextFuncti
     });
 
     res.status(201).json({ data: ticket });
+
+    // Fire-and-forget background AI processing — must not block the response
+    runAiProcessing(ticket.id, body.subject, body.description, customerId).catch((err) => {
+      console.error('AI background processing error:', err);
+    });
   } catch (error) {
     next(error);
+  }
+}
+
+async function runAiProcessing(
+  ticketId: string,
+  subject: string,
+  description: string,
+  customerId: string
+): Promise<void> {
+  // Feature C — Auto-classification
+  try {
+    const classification = await classifyTicket(subject, description);
+    await prisma.ticket.update({
+      where: { id: ticketId },
+      data: { category: classification.category, priority: classification.suggestedPriority },
+    });
+  } catch (err) {
+    // Classification failure should not affect the ticket
+    console.error('Auto-classification failed:', err);
+  }
+
+  // Feature D — Auto-resolve
+  try {
+    const kb = await prisma.knowledgeBase.findMany();
+    const resolution = await tryAutoResolve(subject, description, kb);
+    if (resolution) {
+      await prisma.message.create({
+        data: { body: resolution, ticketId, authorId: customerId, isAiGenerated: true },
+      });
+      await prisma.ticket.update({ where: { id: ticketId }, data: { status: 'RESOLVED' } });
+    }
+  } catch (err) {
+    console.error('Auto-resolve failed:', err);
   }
 }
 
@@ -206,6 +250,51 @@ export async function createMessage(req: Request, res: Response, next: NextFunct
     });
 
     res.status(201).json({ data: message });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ─── AI endpoints ─────────────────────────────────────────────────────────────
+
+const polishReplySchema = z.object({ draft: z.string().min(1) });
+
+export async function polishReplyHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const id = String(req.params.id);
+    const { draft } = polishReplySchema.parse(req.body);
+
+    const ticket = await prisma.ticket.findUnique({ where: { id } });
+    if (!ticket) return next(new AppError('Ticket not found', 404));
+
+    const polished = await polishReply(ticket.subject, draft);
+    res.json({ data: { polishedReply: polished } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function summarizeHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const id = String(req.params.id);
+
+    const ticket = await prisma.ticket.findUnique({
+      where: { id },
+      include: { messages: { include: { author: { select: { role: true } } }, orderBy: { createdAt: 'asc' } } },
+    });
+    if (!ticket) return next(new AppError('Ticket not found', 404));
+
+    const messages = ticket.messages.map((m) => ({ authorRole: m.author.role, body: m.body }));
+    const summary = await summarizeTicket(ticket.subject, messages);
+    res.json({ data: { summary } });
   } catch (error) {
     next(error);
   }

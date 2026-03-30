@@ -59,13 +59,20 @@ model Ticket {
 }
 
 model Message {
-  id           String   @id @default(cuid())
-  body         String
-  ticketId     String
-  authorId     String
-  isAiGenerated Boolean @default(false)
-  createdAt    DateTime @default(now())
+  id            String   @id @default(cuid())
+  body          String
+  ticketId      String
+  authorId      String
+  isAiGenerated Boolean  @default(false)
+  createdAt     DateTime @default(now())
 
   ticket Ticket @relation(fields: [ticketId], references: [id])
   author User   @relation(fields: [authorId], references: [id])
+}
+
+model KnowledgeBase {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  createdAt DateTime @default(now())
 }

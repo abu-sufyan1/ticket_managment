@@ -9,6 +9,8 @@ import {
   updateTicket,
   assignTicket,
   createMessage,
+  polishReplyHandler,
+  summarizeHandler,
 } from '../controllers/ticketsController';
 
 export const ticketsRouter = Router();
@@ -36,3 +38,7 @@ ticketsRouter.post('/:id/assign', requireRole('agent', 'admin'), assignTicket);
 
 // Agent or ticket owner: add a reply message
 ticketsRouter.post('/:id/messages', createMessage);
+
+// AI endpoints — agent/admin only
+ticketsRouter.post('/:id/polish-reply', requireRole('agent', 'admin'), polishReplyHandler);
+ticketsRouter.post('/:id/summarize', requireRole('agent', 'admin'), summarizeHandler);
