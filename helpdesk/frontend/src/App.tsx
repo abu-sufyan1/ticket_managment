@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
+import UsersPage from './pages/admin/UsersPage';
 
 const queryClient = new QueryClient();
 
@@ -22,9 +23,14 @@ export default function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-            {/* Protected routes */}
+            {/* Protected routes (any authenticated user) */}
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<HomePage />} />
+            </Route>
+
+            {/* Admin-only routes */}
+            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+              <Route path="/admin/users" element={<UsersPage />} />
             </Route>
           </Routes>
         </BrowserRouter>
