@@ -1,0 +1,5 @@
+helpdesk/backend/node_modules/
+helpdesk/backend/dist/
+helpdesk/backend/src/generated/
+helpdesk/frontend/node_modules/
+helpdesk/frontend/dist/
