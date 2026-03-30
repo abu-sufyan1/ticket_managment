@@ -67,3 +67,5 @@ Read CLAUDE.md and all files in .specify/tasks/.
 Identify which tasks are complete (check git log) and which are pending.
 Resume from the first incomplete task.
 ```
+
+claude --resume 76bc6aec-1bc8-4329-a54d-4d3e8de7a1f2
